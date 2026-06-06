@@ -6,6 +6,10 @@ function App() {
   const [joinInput, setJoinInput] = useState("");
   const [users, setUsers] = useState([]);
   const [status, setStatus] = useState("Not connected to any room");
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  const role =
+    users.length > 0 && users[0] === socket.id ? "Sender" : "Receiver";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -57,6 +61,19 @@ function App() {
     socket.emit("join-room", formattedRoomId);
   };
 
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
   const shareLink = roomId ? `${window.location.origin}?room=${roomId}` : "";
 
   return (
@@ -71,6 +88,7 @@ function App() {
           <p>Share Link: {shareLink}</p>
           <p>Status: {status}</p>
           <p>Users in room: {users.length}</p>
+          <p>Your role: {role}</p>
         </div>
       )}
 
@@ -83,6 +101,27 @@ function App() {
       />
 
       <button onClick={joinRoom}>Join Room</button>
+
+      {roomId && role === "Sender" && (
+        <div style={{ marginTop: "2rem" }}>
+          <h3>Select File</h3>
+          <input type="file" onChange={handleFileChange} />
+
+          {selectedFile && (
+            <div>
+              <p>File: {selectedFile.name}</p>
+              <p>Size: {formatFileSize(selectedFile.size)}</p>
+              <p>Type: {selectedFile.type || "Unknown"}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {roomId && role === "Receiver" && (
+        <div style={{ marginTop: "2rem" }}>
+          <h3>Waiting for sender to choose a file...</h3>
+        </div>
+      )}
     </div>
   );
 }
