@@ -12,7 +12,9 @@ function App() {
   const [message, setMessage] = useState("");
 const [receivedFileInfo, setReceivedFileInfo] = useState(null);
   const peerConnectionRef = useRef(null);
-  const dataChannelRef = useRef(null);
+  const dataChannelRef = useRef(null); 
+  const receivedChunksRef = useRef([]);
+const receivedFileInfoRef = useRef(null); 
 
   const role =
     users.length > 0 && users[0] === socket.id ? "Sender" : "Receiver";
@@ -58,11 +60,34 @@ const [receivedFileInfo, setReceivedFileInfo] = useState(null);
           setPeerStatus("Data channel closed");
         };
         dataChannelRef.current.onmessage = (event) => {
+  if (event.data instanceof ArrayBuffer) {
+    receivedChunksRef.current.push(event.data);
+    return;
+  }
+
   try {
     const data = JSON.parse(event.data);
 
     if (data.type === "file-meta") {
+      receivedChunksRef.current = [];
+      receivedFileInfoRef.current = data;
       setReceivedFileInfo(data);
+      return;
+    }
+
+    if (data.type === "file-complete") {
+      const fileBlob = new Blob(receivedChunksRef.current, {
+        type: receivedFileInfoRef.current?.mimeType || "application/octet-stream",
+      });
+
+      const downloadUrl = URL.createObjectURL(fileBlob);
+      const link = document.createElement("a");
+
+      link.href = downloadUrl;
+      link.download = receivedFileInfoRef.current?.name || "received-file";
+      link.click();
+
+      URL.revokeObjectURL(downloadUrl);
       return;
     }
   } catch {
@@ -207,6 +232,32 @@ const [receivedFileInfo, setReceivedFileInfo] = useState(null);
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
+  const sendFile = async () => {
+  if (!selectedFile) return;
+
+  if (dataChannelRef.current?.readyState !== "open") {
+    alert("Data channel is not open yet.");
+    return;
+  }
+
+  const chunkSize = 16 * 1024;
+  let offset = 0;
+
+  while (offset < selectedFile.size) {
+    const chunk = selectedFile.slice(offset, offset + chunkSize);
+    const arrayBuffer = await chunk.arrayBuffer();
+
+    dataChannelRef.current.send(arrayBuffer);
+
+    offset += chunkSize;
+  }
+
+  dataChannelRef.current.send(
+    JSON.stringify({
+      type: "file-complete",
+    })
+  );
+};
 
   const shareLink = roomId ? `${window.location.origin}?room=${roomId}` : "";
 
@@ -248,6 +299,7 @@ const [receivedFileInfo, setReceivedFileInfo] = useState(null);
               <p>File: {selectedFile.name}</p>
               <p>Size: {formatFileSize(selectedFile.size)}</p>
               <p>Type: {selectedFile.type || "Unknown"}</p>
+               <button onClick={sendFile}>Send File</button>
             </div>
           )}
         </div>
