@@ -37,10 +37,10 @@ io.on("connection", (socket) => {
     if (!rooms[roomId]) {
       rooms[roomId] = [];
     }
-
-    if (!rooms[roomId].includes(socket.id)) {
+if (!rooms[roomId].includes(socket.id)) {
   rooms[roomId].push(socket.id);
 }
+    
 
     console.log(`User ${socket.id} joined room ${roomId}`);
     console.log("Room users:", rooms[roomId]);
@@ -55,7 +55,26 @@ io.on("connection", (socket) => {
       users: rooms[roomId],
     });
   });
+socket.on("webrtc-offer", ({ roomId, offer }) => {
+  socket.to(roomId).emit("webrtc-offer", {
+    offer,
+    senderId: socket.id,
+  });
+});
 
+socket.on("webrtc-answer", ({ roomId, answer }) => {
+  socket.to(roomId).emit("webrtc-answer", {
+    answer,
+    senderId: socket.id,
+  });
+});
+
+socket.on("ice-candidate", ({ roomId, candidate }) => {
+  socket.to(roomId).emit("ice-candidate", {
+    candidate,
+    senderId: socket.id,
+  });
+});
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
 
