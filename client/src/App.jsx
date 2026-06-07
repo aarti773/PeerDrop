@@ -10,7 +10,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [peerStatus, setPeerStatus] = useState("Peer not connected");
   const [message, setMessage] = useState("");
-
+const [receivedFileInfo, setReceivedFileInfo] = useState(null);
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null);
 
@@ -58,7 +58,16 @@ function App() {
           setPeerStatus("Data channel closed");
         };
         dataChannelRef.current.onmessage = (event) => {
-  setMessage(event.data);
+  try {
+    const data = JSON.parse(event.data);
+
+    if (data.type === "file-meta") {
+      setReceivedFileInfo(data);
+      return;
+    }
+  } catch {
+    setMessage(event.data);
+  }
 };
       };
     }
@@ -181,6 +190,16 @@ function App() {
     if (!file) return;
 
     setSelectedFile(file);
+    if (dataChannelRef.current?.readyState === "open") {
+  dataChannelRef.current.send(
+    JSON.stringify({
+      type: "file-meta",
+      name: file.name,
+      size: file.size,
+      mimeType: file.type || "Unknown",
+    })
+  );
+}
   };
 
   const formatFileSize = (bytes) => {
@@ -237,6 +256,13 @@ function App() {
       {roomId && role === "Receiver" && (
         <div style={{ marginTop: "2rem" }}>
           <h3>Waiting for sender to choose a file...</h3>
+          {receivedFileInfo && (
+  <div>
+    <p>Incoming file: {receivedFileInfo.name}</p>
+    <p>Size: {formatFileSize(receivedFileInfo.size)}</p>
+    <p>Type: {receivedFileInfo.mimeType}</p>
+  </div>
+)}
         </div>
       )}
     </div>
