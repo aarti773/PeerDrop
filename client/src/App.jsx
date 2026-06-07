@@ -13,6 +13,8 @@ function App() {
 const [receivedFileInfo, setReceivedFileInfo] = useState(null);
 const [sendProgress, setSendProgress] = useState(0);
 const [receiveProgress, setReceiveProgress] = useState(0);
+const [transferStatus, setTransferStatus] = useState("Idle");
+const [isSending, setIsSending] = useState(false);
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null); 
   const receivedChunksRef = useRef([]);
@@ -85,6 +87,7 @@ const receivedFileInfoRef = useRef(null);
       receivedFileInfoRef.current = data;
       setReceivedFileInfo(data);
       setReceiveProgress(0);
+      setTransferStatus("Receiving...");
       return;
     }
 
@@ -99,7 +102,7 @@ const receivedFileInfoRef = useRef(null);
       link.href = downloadUrl;
       link.download = receivedFileInfoRef.current?.name || "received-file";
       link.click();
-
+setTransferStatus("Transfer Complete");
       URL.revokeObjectURL(downloadUrl);
       return;
     }
@@ -253,6 +256,8 @@ const receivedFileInfoRef = useRef(null);
     return;
   }
 setSendProgress(0);
+setTransferStatus("Sending...");
+setIsSending(true);
 dataChannelRef.current.send(
   JSON.stringify({
     type: "file-meta",
@@ -261,6 +266,7 @@ dataChannelRef.current.send(
     mimeType: selectedFile.type || "Unknown",
   })
 );
+
   const chunkSize = 16 * 1024;
   let offset = 0;
 
@@ -281,6 +287,8 @@ dataChannelRef.current.send(
       type: "file-complete",
     })
   );
+  setTransferStatus("Transfer Complete");
+  setIsSending(false);
 };
 
   const shareLink = roomId ? `${window.location.origin}?room=${roomId}` : "";
@@ -299,6 +307,7 @@ dataChannelRef.current.send(
           <p>Users in room: {users.length}</p>
           <p>Your role: {role}</p>
           <p>Peer status: {peerStatus}</p>
+          <p>Transfer Status: {transferStatus}</p>
           <p>Message: {message}</p>
         </div>
       )}
@@ -323,7 +332,9 @@ dataChannelRef.current.send(
               <p>File: {selectedFile.name}</p>
               <p>Size: {formatFileSize(selectedFile.size)}</p>
               <p>Type: {selectedFile.type || "Unknown"}</p>
-               <button onClick={sendFile}>Send File</button>
+             <button onClick={sendFile} disabled={isSending}>
+  {isSending ? "Sending..." : "Send File"}
+</button>
                <p>Send Progress: {sendProgress}%</p>
             </div>
           )}
