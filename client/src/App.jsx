@@ -9,6 +9,7 @@ function App() {
   const [status, setStatus] = useState("Not connected to any room");
   const [selectedFile, setSelectedFile] = useState(null);
   const [peerStatus, setPeerStatus] = useState("Peer not connected");
+  const [message, setMessage] = useState("");
 
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null);
@@ -39,6 +40,7 @@ function App() {
 
       dataChannel.onopen = () => {
         setPeerStatus("Data channel open");
+          dataChannel.send("Hello from sender");
       };
 
       dataChannel.onclose = () => {
@@ -55,6 +57,9 @@ function App() {
         dataChannelRef.current.onclose = () => {
           setPeerStatus("Data channel closed");
         };
+        dataChannelRef.current.onmessage = (event) => {
+  setMessage(event.data);
+};
       };
     }
 
@@ -200,6 +205,7 @@ function App() {
           <p>Users in room: {users.length}</p>
           <p>Your role: {role}</p>
           <p>Peer status: {peerStatus}</p>
+          <p>Message: {message}</p>
         </div>
       )}
 
