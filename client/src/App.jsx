@@ -11,6 +11,8 @@ function App() {
   const [peerStatus, setPeerStatus] = useState("Peer not connected");
   const [message, setMessage] = useState("");
 const [receivedFileInfo, setReceivedFileInfo] = useState(null);
+const [sendProgress, setSendProgress] = useState(0);
+const [receiveProgress, setReceiveProgress] = useState(0);
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null); 
   const receivedChunksRef = useRef([]);
@@ -62,6 +64,16 @@ const receivedFileInfoRef = useRef(null);
         dataChannelRef.current.onmessage = (event) => {
   if (event.data instanceof ArrayBuffer) {
     receivedChunksRef.current.push(event.data);
+     const receivedBytes = receivedChunksRef.current.reduce(
+    (total, chunk) => total + chunk.byteLength,
+    0
+  );
+
+  if (receivedFileInfoRef.current?.size) {
+    setReceiveProgress(
+      Math.round((receivedBytes / receivedFileInfoRef.current.size) * 100)
+    );
+  }
     return;
   }
 
@@ -72,6 +84,7 @@ const receivedFileInfoRef = useRef(null);
       receivedChunksRef.current = [];
       receivedFileInfoRef.current = data;
       setReceivedFileInfo(data);
+      setReceiveProgress(0);
       return;
     }
 
@@ -239,7 +252,15 @@ const receivedFileInfoRef = useRef(null);
     alert("Data channel is not open yet.");
     return;
   }
-
+setSendProgress(0);
+dataChannelRef.current.send(
+  JSON.stringify({
+    type: "file-meta",
+    name: selectedFile.name,
+    size: selectedFile.size,
+    mimeType: selectedFile.type || "Unknown",
+  })
+);
   const chunkSize = 16 * 1024;
   let offset = 0;
 
@@ -250,6 +271,9 @@ const receivedFileInfoRef = useRef(null);
     dataChannelRef.current.send(arrayBuffer);
 
     offset += chunkSize;
+    setSendProgress(
+  Math.min(100, Math.round((offset / selectedFile.size) * 100))
+);
   }
 
   dataChannelRef.current.send(
@@ -300,6 +324,7 @@ const receivedFileInfoRef = useRef(null);
               <p>Size: {formatFileSize(selectedFile.size)}</p>
               <p>Type: {selectedFile.type || "Unknown"}</p>
                <button onClick={sendFile}>Send File</button>
+               <p>Send Progress: {sendProgress}%</p>
             </div>
           )}
         </div>
@@ -313,6 +338,7 @@ const receivedFileInfoRef = useRef(null);
     <p>Incoming file: {receivedFileInfo.name}</p>
     <p>Size: {formatFileSize(receivedFileInfo.size)}</p>
     <p>Type: {receivedFileInfo.mimeType}</p>
+     <p>Receive Progress: {receiveProgress}%</p>
   </div>
 )}
         </div>
