@@ -39,13 +39,15 @@ Files are transferred directly between browsers without being stored on any cent
 
 ## Project Architecture
 
-Sender Browser
-↓
-Socket.io Signaling Server
-↓
-Receiver Browser
-
-After signaling is completed, files are transferred directly through a WebRTC Data Channel.
+```text
+Sender Browser → Socket.io Signaling Server → Receiver Browser
+                           │
+                           ▼
+                 WebRTC Data Channel
+                           │
+                           ▼
+                 Direct P2P File Transfer
+```
 
 ## Local Setup
 
@@ -116,4 +118,3 @@ https://peerdrop-production-4a15.up.railway.app
 ## Author
 
 Aarti
-Mechanical,IIT Roorkee
