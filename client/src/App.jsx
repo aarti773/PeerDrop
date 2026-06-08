@@ -229,6 +229,15 @@ setTransferStatus("Transfer Complete");
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    const maxFileSize = 50 * 1024 * 1024;
+
+  if (file.size > maxFileSize) {
+    alert("File size must be less than 50MB.");
+    event.target.value = "";
+    setSelectedFile(null);
+    return;
+  }
+
 
     setSelectedFile(file);
     if (dataChannelRef.current?.readyState === "open") {
