@@ -19,10 +19,14 @@ const [isSending, setIsSending] = useState(false);
 const [senderHash, setSenderHash] = useState("");
 const [receiverHash, setReceiverHash] = useState("");
 const [hashStatus, setHashStatus] = useState("Not verified");
+const [sendSpeed, setSendSpeed] = useState("0 MB/s");
+const [receiveSpeed, setReceiveSpeed] = useState("0 MB/s");
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null); 
   const receivedChunksRef = useRef([]);
 const receivedFileInfoRef = useRef(null); 
+const sendStartTimeRef = useRef(null);
+const receiveStartTimeRef = useRef(null);
 
   const role =
     users.length > 0 && users[0] === socket.id ? "Sender" : "Receiver";
@@ -79,6 +83,12 @@ const receivedFileInfoRef = useRef(null);
     setReceiveProgress(
       Math.round((receivedBytes / receivedFileInfoRef.current.size) * 100)
     );
+    const elapsedSeconds = (Date.now() - receiveStartTimeRef.current) / 1000;
+
+if (elapsedSeconds > 0) {
+  const speedMbps = receivedBytes / (1024 * 1024) / elapsedSeconds;
+  setReceiveSpeed(`${speedMbps.toFixed(2)} MB/s`);
+}
   }
     return;
   }
@@ -91,6 +101,8 @@ const receivedFileInfoRef = useRef(null);
       receivedFileInfoRef.current = data;
       setReceivedFileInfo(data);
       setReceiveProgress(0);
+      setReceiveSpeed("0 MB/s");
+receiveStartTimeRef.current = Date.now();
       setTransferStatus("Receiving...");
       return;
     }
@@ -264,7 +276,25 @@ setTransferStatus("Transfer Complete");
   );
 }
   };
+const handleDrop = (event) => {
+  event.preventDefault();
 
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+
+  const maxFileSize = 50 * 1024 * 1024;
+
+  if (file.size > maxFileSize) {
+    alert("File size must be less than 50MB.");
+    return;
+  }
+
+  setSelectedFile(file);
+};
+
+const handleDragOver = (event) => {
+  event.preventDefault();
+};
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
@@ -278,6 +308,8 @@ setTransferStatus("Transfer Complete");
     return;
   }
 setSendProgress(0);
+setSendSpeed("0 MB/s");
+sendStartTimeRef.current = Date.now();
 setTransferStatus("Sending...");
 setIsSending(true);
 const fileHash = await calculateSHA256(selectedFile);
@@ -306,6 +338,12 @@ dataChannelRef.current.send(
     setSendProgress(
   Math.min(100, Math.round((offset / selectedFile.size) * 100))
 );
+const elapsedSeconds = (Date.now() - sendStartTimeRef.current) / 1000;
+
+if (elapsedSeconds > 0) {
+  const speedMbps = offset / (1024 * 1024) / elapsedSeconds;
+  setSendSpeed(`${speedMbps.toFixed(2)} MB/s`);
+}
   }
 
   dataChannelRef.current.send(
@@ -352,7 +390,19 @@ dataChannelRef.current.send(
       {roomId && role === "Sender" && (
         <div style={{ marginTop: "2rem" }}>
           <h3>Select File</h3>
-          <input type="file" onChange={handleFileChange} />
+          <div
+  onDrop={handleDrop}
+  onDragOver={handleDragOver}
+  style={{
+    border: "2px dashed gray",
+    padding: "20px",
+    marginBottom: "10px",
+    textAlign: "center",
+  }}
+>
+  <p>Drag & Drop File Here</p>
+  <input type="file" onChange={handleFileChange} />
+</div>
 
           {selectedFile && (
             <div>
@@ -363,6 +413,7 @@ dataChannelRef.current.send(
   {isSending ? "Sending..." : "Send File"}
 </button>
                <p>Send Progress: {sendProgress}%</p>
+               <p>Send Speed: {sendSpeed}</p>
             </div>
           )}
         </div>
@@ -377,6 +428,7 @@ dataChannelRef.current.send(
     <p>Size: {formatFileSize(receivedFileInfo.size)}</p>
     <p>Type: {receivedFileInfo.mimeType}</p>
      <p>Receive Progress: {receiveProgress}%</p>
+    <p>Receive Speed: {receiveSpeed}</p>
   </div>
 )}
         </div>
