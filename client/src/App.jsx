@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import socket from "./config/socket";
 import { createPeerConnection } from "./utils/webrtc";
+import { calculateSHA256 } from "./utils/hash";
 
 function App() {
   const [roomId, setRoomId] = useState("");
@@ -15,6 +16,9 @@ const [sendProgress, setSendProgress] = useState(0);
 const [receiveProgress, setReceiveProgress] = useState(0);
 const [transferStatus, setTransferStatus] = useState("Idle");
 const [isSending, setIsSending] = useState(false);
+const [senderHash, setSenderHash] = useState("");
+const [receiverHash, setReceiverHash] = useState("");
+const [hashStatus, setHashStatus] = useState("Not verified");
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null); 
   const receivedChunksRef = useRef([]);
@@ -63,7 +67,7 @@ const receivedFileInfoRef = useRef(null);
         dataChannelRef.current.onclose = () => {
           setPeerStatus("Data channel closed");
         };
-        dataChannelRef.current.onmessage = (event) => {
+        dataChannelRef.current.onmessage = async (event) => {
   if (event.data instanceof ArrayBuffer) {
     receivedChunksRef.current.push(event.data);
      const receivedBytes = receivedChunksRef.current.reduce(
@@ -95,7 +99,16 @@ const receivedFileInfoRef = useRef(null);
       const fileBlob = new Blob(receivedChunksRef.current, {
         type: receivedFileInfoRef.current?.mimeType || "application/octet-stream",
       });
+const calculatedHash = await calculateSHA256(fileBlob);
+setReceiverHash(calculatedHash);
 
+if (calculatedHash === receivedFileInfoRef.current?.hash) {
+  setHashStatus("Verified");
+} else {
+  setHashStatus("Hash mismatch");
+  alert("File verification failed. The received file may be corrupted.");
+  return;
+}
       const downloadUrl = URL.createObjectURL(fileBlob);
       const link = document.createElement("a");
 
@@ -267,12 +280,16 @@ setTransferStatus("Transfer Complete");
 setSendProgress(0);
 setTransferStatus("Sending...");
 setIsSending(true);
+const fileHash = await calculateSHA256(selectedFile);
+setSenderHash(fileHash);
+setHashStatus("Hash calculated");
 dataChannelRef.current.send(
   JSON.stringify({
     type: "file-meta",
     name: selectedFile.name,
     size: selectedFile.size,
     mimeType: selectedFile.type || "Unknown",
+    hash: fileHash,
   })
 );
 
@@ -317,6 +334,7 @@ dataChannelRef.current.send(
           <p>Your role: {role}</p>
           <p>Peer status: {peerStatus}</p>
           <p>Transfer Status: {transferStatus}</p>
+          <p>Hash Status: {hashStatus}</p>
           <p>Message: {message}</p>
         </div>
       )}
