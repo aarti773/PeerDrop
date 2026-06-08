@@ -45,8 +45,17 @@ const receiveStartTimeRef = useRef(null);
     };
 
     peerConnection.onconnectionstatechange = () => {
-      setPeerStatus(peerConnection.connectionState);
-    };
+  if (
+    peerConnection.connectionState === "disconnected" ||
+    peerConnection.connectionState === "failed" ||
+    peerConnection.connectionState === "closed"
+  ) {
+    setPeerStatus("Peer disconnected");
+    setTransferStatus("Peer disconnected");
+  } else {
+    setPeerStatus(peerConnection.connectionState);
+  }
+};
 
     if (isSender) {
       const dataChannel = peerConnection.createDataChannel("file-transfer");
@@ -58,8 +67,9 @@ const receiveStartTimeRef = useRef(null);
       };
 
       dataChannel.onclose = () => {
-        setPeerStatus("Data channel closed");
-      };
+  setPeerStatus("Peer disconnected");
+  setTransferStatus("Peer disconnected");
+};
     } else {
       peerConnection.ondatachannel = (event) => {
         dataChannelRef.current = event.channel;
@@ -68,9 +78,10 @@ const receiveStartTimeRef = useRef(null);
           setPeerStatus("Data channel open");
         };
 
-        dataChannelRef.current.onclose = () => {
-          setPeerStatus("Data channel closed");
-        };
+      dataChannelRef.current.onclose = () => {
+  setPeerStatus("Peer disconnected");
+  setTransferStatus("Peer disconnected");
+};
         dataChannelRef.current.onmessage = async (event) => {
   if (event.data instanceof ArrayBuffer) {
     receivedChunksRef.current.push(event.data);
@@ -224,6 +235,14 @@ setTransferStatus("Transfer Complete");
       setStatus(`User left: ${userId}`);
       setUsers(users);
       setPeerStatus("Peer disconnected");
+      setTransferStatus("Peer disconnected");
+
+  if (peerConnectionRef.current) {
+    peerConnectionRef.current.close();
+    peerConnectionRef.current = null;
+  }
+
+  dataChannelRef.current = null;
     });
 
     return () => {
