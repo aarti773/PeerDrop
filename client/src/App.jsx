@@ -56,7 +56,9 @@ const receiveStartTimeRef = useRef(null);
     setPeerStatus(peerConnection.connectionState);
   }
 };
-
+peerConnection.oniceconnectionstatechange = () => {
+  console.log("ICE state:", peerConnection.iceConnectionState);
+};
     if (isSender) {
       const dataChannel = peerConnection.createDataChannel("file-transfer");
       dataChannelRef.current = dataChannel;
